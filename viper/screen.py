@@ -2,12 +2,14 @@ import numpy as np
 from PIL import ImageGrab
 import cv2
 import time
-import pyautogui
 
 
-def auto_canny(image, sigma=0.33):
+def auto_canny(image, sigma=0.33, center=None):
     # compute the median of the single channel pixel intensities
-    v = np.median(image[np.nonzero(image)])
+    if center is None:
+        v = np.median(image[np.nonzero(image)])
+    else:
+        v = center
 
     # apply automatic Canny edge detection using the computed median
     lower = int(max(0, (1.0 - sigma) * v))
@@ -24,10 +26,20 @@ def mask_roi(image, vertices):
     return cv2.bitwise_and(image, mask)
 
 
+def mask_roi_noise(image, vertices):
+    mask = np.zeros_like(image)
+    cv2.fillPoly(mask, [vertices], 255)
+    image_masked = cv2.bitwise_and(image, mask)
+    inv_mask = 255 - mask
+    noise = inv_mask * np.random.rand(np.shape(image)[0], np.shape(image)[1])
+    return image_masked + noise.astype(np.uint8)
+
+
 font = cv2.FONT_HERSHEY_SIMPLEX
 startTime = lastTime = currentTime = time.time()
 avgFps = 0
 roi_vertices = np.array([[10, 500], [10, 300], [300, 200], [500, 200], [790, 300], [790, 500]])
+avgThreshold = 127
 
 while True:
     # Capture the screen
@@ -36,21 +48,25 @@ while True:
     # Process the image
     screenGray = cv2.cvtColor(screen, cv2.COLOR_BGR2GRAY)
     screenFilter = cv2.GaussianBlur(screenGray, (5, 5), 0)
-    screenEdge = auto_canny(screenFilter, 0.66)
+    otsuThreshold = cv2.threshold(screenFilter, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[0]
+    avgThreshold = 0.9 * avgThreshold + 0.1 * otsuThreshold
+    # screenThreshold = cv2.threshold(screenFilter, avgThreshold, 255, cv2.THRESH_BINARY)[1]
+    screenEdge = auto_canny(screenFilter, 1, avgThreshold)
     screenMask = mask_roi(screenEdge, roi_vertices)
 
     # Find lines on the image
-    lines = cv2.HoughLinesP(screenMask, 2, np.pi/90, 100, minLineLength=100, maxLineGap=10)
+    lines = cv2.HoughLinesP(screenMask, 1, np.pi/180, 1, minLineLength=100, maxLineGap=10)
     if lines is not None:
         for x1, y1, x2, y2 in lines[:, 0, :]:
             cv2.line(screen, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
-
     # Display the processed data
-    cv2.imshow("Gray", screenGray)
-    cv2.imshow("Filter", screenFilter)
+    # cv2.imshow("Gray", screenGray)
+    # cv2.imshow("Filter", screenFilter)
     cv2.imshow("Edge Detected", screenEdge)
     cv2.imshow("Edge Detected + Mask", screenMask)
+    # cv2.imshow("Threshold", screenThreshold)
+    # cv2.imshow("Threshold1", temp)
     cv2.imshow("Hough Lines", screen)
 
     # Calculate the frame rate
