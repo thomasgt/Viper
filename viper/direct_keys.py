@@ -1,6 +1,9 @@
 import ctypes
 import time
 from enum import Enum
+import threading
+import queue
+import numpy as np
 
 # Internal implementation
 _SendInput = ctypes.windll.user32.SendInput
@@ -64,15 +67,71 @@ class Key(Enum):
     S = 0x1F
     D = 0x20
 
+
+class KeyThread(threading.Thread):
+    # Internal states
+    class State(Enum):
+        IDLE = 0
+        ENABLED = 1
+        DISABLED = 2
+
+    def __init__(self, key, period=0.1):
+        super(KeyThread, self).__init__()
+        self.key = key
+        self.task_queue = queue.Queue()
+        self.duty_cycle = 0
+        self.period = period
+        self.daemon = True
+        self.state = self.State.IDLE
+
+    def set_duty_cycle(self, duty_cycle):
+        self.duty_cycle = np.clip(duty_cycle, 0, 1)
+
+    def start(self):
+        self.state = self.State.ENABLED
+        super(KeyThread, self).start()
+
+    def run(self):
+        while True:
+            if self.state == self.State.ENABLED:
+                # Press/release key
+                start_time = time.time()
+                # if self.duty_cycle * self.period > 0.01:
+                press_key(self.key)
+                time.sleep(self.duty_cycle * self.period)
+                on_time = time.time() - start_time
+                release_key(self.key)
+                time.sleep((1 - self.duty_cycle) * self.period)
+                total_time = time.time()  - start_time
+                # print("   Actual period:     %5.1f" % total_time)
+                # print("   Actual duty cycle: %5.1f%%" % (on_time / total_time * 100))
+            elif self.state == self.State.DISABLED:
+                release_key(self.key)
+                self.state = self.State.IDLE
+            elif self.state == self.State.IDLE:
+                time.sleep(0.1)
+
+    def disable(self):
+        self.state = self.State.DISABLED
+
+    def enable(self):
+        self.state = self.State.ENABLED
+
+
+
 if __name__ == '__main__':
     for t in range(5, 0, -1):
         print("Starting in {}...".format(t))
         time.sleep(1)
 
-    while (True):
-        press_key(Key.W)
+    forward_thread = KeyThread(Key.W, 2)
+    forward_thread.start()
+
+    for duty_cycle in np.arange(0.3, 1, 0.1):
+        print("Setting duty cycle to %0.0f%%" % (duty_cycle * 100))
+        forward_thread.set_duty_cycle(duty_cycle)
         time.sleep(5)
-        release_key(Key.W)
-        press_key(Key.S)
-        time.sleep(5)
-        release_key(Key.S)
+
+    forward_thread.set_duty_cycle(0)
+
+    time.sleep(10)
