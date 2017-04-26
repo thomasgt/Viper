@@ -4,6 +4,10 @@ import cv2
 import time
 from viper import direct_keys as dk
 
+# TODO Modularize the code
+# TODO Apply some perspective warping to make lane detection easier
+# TODO Come up with a kernel that can find lanes consistently
+
 
 # Shared variables used in mouse callback
 points_clicked = 0
