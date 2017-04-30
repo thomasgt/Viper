@@ -3,107 +3,12 @@ from PIL import ImageGrab
 import cv2
 import time
 from viper import direct_keys as dk
+from viper.interface import get_roi_from_mouse
+from viper import process as vp
 
 # TODO Modularize the code
 # TODO Apply some perspective warping to make lane detection easier
 # TODO Come up with a kernel that can find lanes consistently
-
-
-# Shared variables used in mouse callback
-points_clicked = 0
-x_roi = []
-y_roi = []
-waiting_for_mouse = False
-
-
-def mouse_callback(event, x, y, flags, param):
-    # Shared variables
-    global x_roi, y_roi, points_clicked, waiting_for_mouse
-
-    # Stop once we've decided not to wait any longer
-    if not waiting_for_mouse:
-        return
-
-    # Whenever we receive a left click, process it
-    if event == cv2.EVENT_LBUTTONDOWN:
-        # Add this (x, y) position to the list of points
-        x_roi.append(x)
-        y_roi.append(y)
-        points_clicked = points_clicked + 1
-
-        # If we just clicked near the first point, stop
-        if points_clicked > 1:
-            dist = np.sqrt((x - x_roi[0]) ** 2 + (y - y_roi[0]) ** 2)
-            if dist < 100:
-                waiting_for_mouse = False
-
-
-def get_roi_from_mouse(im):
-    # Get a copy of the image so that we can draw on it
-    im_clone = np.copy(im)
-
-    # Set up our globals
-    global x_roi, y_roi, points_clicked, waiting_for_mouse
-    x_roi = []
-    y_roi = []
-    points_clicked = 0
-    points_drawn = 0
-    waiting_for_mouse = True
-
-    # Show the image to the user
-    cv2.namedWindow("ROI", cv2.WINDOW_NORMAL)
-    cv2.setMouseCallback("ROI", mouse_callback)
-    cv2.imshow("ROI", im_clone)
-
-    # Wait until we're done picking the ROI
-    while waiting_for_mouse:
-        # Draw any new ROI edges on the image
-        while points_drawn < points_clicked:
-            pt = (x_roi[points_drawn], y_roi[points_drawn])
-            cv2.circle(im_clone, pt, 5, (0, 0, 255), -1)
-            if points_drawn > 0:
-                pt2 = (x_roi[points_drawn - 1], y_roi[points_drawn - 1])
-                cv2.line(im_clone, pt, pt2, (0, 0, 255), 5)
-            points_drawn = points_drawn + 1
-            cv2.imshow("ROI", im_clone)
-        cv2.waitKey(1)
-    cv2.destroyWindow("ROI")
-
-    # Return a list of points
-    return np.vstack((x_roi, y_roi)).T
-
-
-def auto_canny(image, sigma=0.33, center=None):
-    # compute the median of the single channel pixel intensities
-    if center is None:
-        v = np.median(image[np.nonzero(image)])
-    else:
-        v = center
-
-    # apply automatic Canny edge detection using the computed median
-    lower = int(max(0, (1.0 - sigma) * v))
-    upper = int(min(255, (1.0 + sigma) * v))
-    edged = cv2.Canny(image, lower, upper)
-
-    # return the edged image
-    return edged
-
-
-def mask_roi(image, vertices, mask=None):
-    if mask is not None:
-        return cv2.bitwise_and(image, mask)
-    mask = np.zeros_like(image)
-    cv2.fillPoly(mask, [vertices], 255)
-    return cv2.bitwise_and(image, mask)
-
-
-def mask_roi_noise(image, vertices):
-    mask = np.zeros_like(image)
-    cv2.fillPoly(mask, [vertices], 255)
-    image_masked = cv2.bitwise_and(image, mask)
-    inv_mask = 255 - mask
-    noise = inv_mask.astype(np.double) * np.random.rand(np.size(image, 0), np.size(image, 1))
-    return image_masked + noise.astype(np.uint8)
 
 
 font = cv2.FONT_HERSHEY_SIMPLEX
@@ -126,7 +31,6 @@ except IOError:
     roi_vertices = get_roi_from_mouse(screen)
     np.save(roi_file, roi_vertices)
 
-print(roi_vertices)
 forward_control_avg = 0
 right_control_avg = 0
 left_control_avg = 0
@@ -147,8 +51,8 @@ while True:
     # screen_roi_noise = mask_roi_noise(screen_filter, roi_vertices)
     otsu_threshold = cv2.threshold(screen_filter, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[0]
     avg_threshold = 0.6 * avg_threshold + 0.4 * otsu_threshold
-    screen_canny = auto_canny(255 - screen_filter, 0.5, avg_threshold)
-    screenMask = mask_roi(screen_canny, roi_vertices)
+    screen_canny = vp.auto_canny(255 - screen_filter, 0.5, avg_threshold)
+    screenMask = vp.mask_roi(screen_canny, roi_vertices)
 
     # Find lines on the image
     lines = cv2.HoughLinesP(screenMask, 1, np.pi / 180, 75, minLineLength=75, maxLineGap=30)
