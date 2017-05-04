@@ -23,7 +23,7 @@ for t in range(5, 0, -1):
     time.sleep(1)
 
 # Capture the screen
-roi_file = 'data/truck3.npy'
+roi_file = '../data/truck3.npy'
 try:
     roi_vertices = np.load(roi_file)
 except IOError:
