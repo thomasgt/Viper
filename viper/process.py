@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 
+
 def auto_canny(image, sigma=0.33, center=None):
     # compute the median of the single channel pixel intensities
     if center is None:

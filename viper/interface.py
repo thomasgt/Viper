@@ -1,6 +1,8 @@
 import cv2
 import numpy as np
 
+# TODO Use a class instead of globals
+
 # Shared variables used in mouse callback
 points_clicked = 0
 x_roi = []
@@ -30,7 +32,7 @@ def mouse_callback(event, x, y, flags, param):
                 waiting_for_mouse = False
 
 
-def get_roi_from_mouse(im):
+def get_shape_from_mouse(im, window_title):
     # Get a copy of the image so that we can draw on it
     im_clone = np.copy(im)
 
@@ -43,9 +45,9 @@ def get_roi_from_mouse(im):
     waiting_for_mouse = True
 
     # Show the image to the user
-    cv2.namedWindow("ROI", cv2.WINDOW_NORMAL)
-    cv2.setMouseCallback("ROI", mouse_callback)
-    cv2.imshow("ROI", im_clone)
+    cv2.namedWindow(window_title, cv2.WINDOW_NORMAL)
+    cv2.setMouseCallback(window_title, mouse_callback)
+    cv2.imshow(window_title, im_clone)
 
     # Wait until we're done picking the ROI
     while waiting_for_mouse:
@@ -57,9 +59,22 @@ def get_roi_from_mouse(im):
                 pt2 = (x_roi[points_drawn - 1], y_roi[points_drawn - 1])
                 cv2.line(im_clone, pt, pt2, (0, 0, 255), 5)
             points_drawn = points_drawn + 1
-            cv2.imshow("ROI", im_clone)
+            cv2.imshow(window_title, im_clone)
         cv2.waitKey(1)
-    cv2.destroyWindow("ROI")
+    cv2.destroyWindow(window_title)
 
     # Return a list of points
     return np.vstack((x_roi, y_roi)).T
+
+
+def get_roi(im):
+    return get_shape_from_mouse(im, "Select the ROI")
+
+
+def get_perspective_transform(im):
+    start_points = get_shape_from_mouse(im, "Select the start points")
+    final_points = get_shape_from_mouse(im, "Select the final points")
+    transform_matrix = cv2.getPerspectiveTransform(start_points, final_points)
+    final_size = np.shape(im)[0:2]
+    return transform_matrix, final_size
+

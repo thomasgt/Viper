@@ -2,11 +2,10 @@ import numpy as np
 from PIL import ImageGrab
 import cv2
 import time
-from viper import direct_keys as dk
-from viper.interface import get_roi_from_mouse
+from viper.direct_keys import
+from viper.interface import get_roi, get_perspective_transform
 from viper import process as vp
 
-# TODO Modularize the code
 # TODO Apply some perspective warping to make lane detection easier
 # TODO Come up with a kernel that can find lanes consistently
 
@@ -23,13 +22,18 @@ for t in range(5, 0, -1):
     time.sleep(1)
 
 # Capture the screen
-roi_file = '../data/truck3.npy'
+roi_file = '../data/sanchez3.npz'
 try:
-    roi_vertices = np.load(roi_file)
+    vehicle_data = np.load(roi_file)
+    roi_vertices = vehicle_data['roi_vertices']
+    transform_matrix = vehicle_data['transform_matrix']
+    final_size = vehicle_data['final_size']
+
 except IOError:
     screen = cv2.cvtColor(np.array(ImageGrab.grab(bbox=(8, 30, 808, 630))), cv2.COLOR_RGB2BGR)
-    roi_vertices = get_roi_from_mouse(screen)
-    np.save(roi_file, roi_vertices)
+    roi_vertices = get_roi(screen)
+    transform_matrix, final_size = get_perspective_transform(screen)
+    np.savez(roi_file, roi_vertices=roi_vertices, transform_matrix=transform_matrix, final_size=final_size)
 
 forward_control_avg = 0
 right_control_avg = 0

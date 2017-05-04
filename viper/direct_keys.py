@@ -118,7 +118,6 @@ class KeyThread(threading.Thread):
         self.state = self.State.ENABLED
 
 
-
 if __name__ == '__main__':
     for t in range(5, 0, -1):
         print("Starting in {}...".format(t))
