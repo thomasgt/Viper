@@ -45,7 +45,7 @@ def get_shape_from_mouse(im, window_title):
     waiting_for_mouse = True
 
     # Show the image to the user
-    cv2.namedWindow(window_title, cv2.WINDOW_NORMAL)
+    cv2.namedWindow(window_title, cv2.WINDOW_AUTOSIZE)
     cv2.setMouseCallback(window_title, mouse_callback)
     cv2.imshow(window_title, im_clone)
 
@@ -74,7 +74,22 @@ def get_roi(im):
 def get_perspective_transform(im):
     start_points = get_shape_from_mouse(im, "Select the start points")
     final_points = get_shape_from_mouse(im, "Select the final points")
+    start_points = np.float32(start_points[:4])
+    final_points = np.float32(final_points[:4])
     transform_matrix = cv2.getPerspectiveTransform(start_points, final_points)
-    final_size = np.shape(im)[0:2]
+    final_size = (2*np.size(im, 1), 2*np.size(im, 0))
     return transform_matrix, final_size
+
+
+if __name__ == '__main__':
+    from PIL import ImageGrab
+    screen = cv2.cvtColor(np.array(ImageGrab.grab(bbox=(8, 30, 808, 630))), cv2.COLOR_RGB2BGR)
+    #rv = get_roi(screen)
+    tm, fs = get_perspective_transform(screen)
+    #print(rv)
+    print(tm)
+    print(fs)
+    cv2.imshow("Transformed", cv2.warpPerspective(screen, tm, fs))
+    cv2.imshow("Original", screen)
+    cv2.waitKey()
 

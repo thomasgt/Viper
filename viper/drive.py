@@ -2,8 +2,8 @@ import numpy as np
 from PIL import ImageGrab
 import cv2
 import time
-from viper.direct_keys import
-from viper.interface import get_roi, get_perspective_transform
+from viper import direct_keys as vk
+from viper import interface as vi
 from viper import process as vp
 
 # TODO Apply some perspective warping to make lane detection easier
@@ -31,16 +31,16 @@ try:
 
 except IOError:
     screen = cv2.cvtColor(np.array(ImageGrab.grab(bbox=(8, 30, 808, 630))), cv2.COLOR_RGB2BGR)
-    roi_vertices = get_roi(screen)
-    transform_matrix, final_size = get_perspective_transform(screen)
+    roi_vertices = vi.get_roi(screen)
+    transform_matrix, final_size = vi.get_perspective_transform(screen)
     np.savez(roi_file, roi_vertices=roi_vertices, transform_matrix=transform_matrix, final_size=final_size)
 
 forward_control_avg = 0
 right_control_avg = 0
 left_control_avg = 0
-forward_thread = dk.KeyThread(dk.Key.W, 2)
-left_thread = dk.KeyThread(dk.Key.A, 0.5)
-right_thread = dk.KeyThread(dk.Key.D, 0.5)
+forward_thread = vk.KeyThread(vk.Key.W, 2)
+left_thread = vk.KeyThread(vk.Key.A, 0.5)
+right_thread = vk.KeyThread(vk.Key.D, 0.5)
 forward_thread.start()
 left_thread.start()
 right_thread.start()
