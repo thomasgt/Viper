@@ -28,7 +28,7 @@ def mouse_callback(event, x, y, flags, param):
         # If we just clicked near the first point, stop
         if points_clicked > 1:
             dist = np.sqrt((x - x_roi[0]) ** 2 + (y - y_roi[0]) ** 2)
-            if dist < 100:
+            if dist < 50:
                 waiting_for_mouse = False
 
 
@@ -77,16 +77,18 @@ def get_perspective_transform(im):
     start_points = np.float32(start_points[:4])
     final_points = np.float32(final_points[:4])
     transform_matrix = cv2.getPerspectiveTransform(start_points, final_points)
-    final_size = (2*np.size(im, 1), 2*np.size(im, 0))
+    final_size = (np.size(im, 1), np.size(im, 0))
     return transform_matrix, final_size
 
 
 if __name__ == '__main__':
     from PIL import ImageGrab
     screen = cv2.cvtColor(np.array(ImageGrab.grab(bbox=(8, 30, 808, 630))), cv2.COLOR_RGB2BGR)
-    #rv = get_roi(screen)
-    tm, fs = get_perspective_transform(screen)
-    #print(rv)
+    #tm, fs = get_perspective_transform(screen)
+    sp = np.float32([[0, 400], [155, 300], [645, 300], [799, 400]])
+    ep = np.float32([[250, 649], [250, 550], [550, 550], [550, 649]])
+    fs = (800, 600)
+    tm = cv2.getPerspectiveTransform(sp, ep)
     print(tm)
     print(fs)
     cv2.imshow("Transformed", cv2.warpPerspective(screen, tm, fs))
